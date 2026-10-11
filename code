@@ -1,0 +1,140 @@
+#include <Servo.h>
+
+Servo myServo;
+
+// Motor pins
+int IN1 = 5;
+int IN2 = 6;
+int IN3 = 9;
+int IN4 = 10;
+int ENA = 11;
+int ENB = 3;
+
+// Flame sensors
+int leftSensor = A2;
+int midSensor  = A1;
+int rightSensor = A0;
+
+// Pump
+int pump = 7;
+
+// Stable read
+int readSensor(int pin) {
+  int count = 0;
+  for (int i = 0; i < 5; i++) {
+    if (digitalRead(pin) == LOW) count++;
+    delay(2);
+  }
+  return (count >= 3) ? LOW : HIGH;
+}
+
+void setup() {
+
+  pinMode(pump, OUTPUT);
+  digitalWrite(pump, HIGH); // OFF
+
+  Serial.begin(9600);
+
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+  pinMode(ENA, OUTPUT);
+  pinMode(ENB, OUTPUT);
+
+  pinMode(leftSensor, INPUT);
+  pinMode(midSensor, INPUT);
+  pinMode(rightSensor, INPUT);
+
+  analogWrite(ENA, 180);
+  analogWrite(ENB, 180);
+
+  myServo.attach(2);
+  myServo.write(90);
+
+  delay(2000);
+}
+
+void loop() {
+
+  int left  = readSensor(leftSensor);
+  int mid   = readSensor(midSensor);
+  int right = readSensor(rightSensor);
+
+  Serial.print("L: "); Serial.print(left);
+  Serial.print(" M: "); Serial.print(mid);
+  Serial.print(" R: "); Serial.println(right);
+
+  // ❌ No fire
+  if (left == HIGH && mid == HIGH && right == HIGH) {
+    stopMotors();
+    digitalWrite(pump, HIGH);
+    return;
+  }
+
+  // 🔥 CLOSE FIRE (SAFE STOP)
+  if (mid == LOW && (left == LOW || right == LOW)) {
+    Serial.println("🔥 CLOSE FIRE → SPRAY");
+
+    stopMotors();
+    delay(300);
+
+    digitalWrite(pump, LOW);
+    delay(3000);
+    digitalWrite(pump, HIGH);
+
+    return;
+  }
+
+  // 🚗 MOVE TOWARDS FIRE
+
+  if (left == LOW) {
+    Serial.println("LEFT");
+    leftTurn();
+    myServo.write(140);
+  }
+
+  else if (right == LOW) {
+    Serial.println("RIGHT");
+    rightTurn();
+    myServo.write(40);
+  }
+
+  else if (mid == LOW) {
+    Serial.println("FORWARD");
+    forward();
+    myServo.write(90);
+  }
+
+  delay(100);
+}
+
+// Movement
+
+void forward() {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+}
+
+void leftTurn() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+}
+
+void rightTurn() {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+}
+
+void stopMotors() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
+}
